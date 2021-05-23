@@ -1,0 +1,33 @@
+CREATE OR REPLACE FUNCTION BILL_GENERATE(pa_id varchar2)
+RETURN NUMBER AS
+   d_fees NUMBER;
+   no_of_days NUMBER;
+   r_fees NUMBER;
+   bill NUMBER;
+BEGIN
+        
+        Select (to_date(rel_date,'DD-MM-YY')-to_date(adm_date,'DD-MM-YY')) into no_of_days from ROOMALLOC_HMS where p_id=pa_id;
+        select dh.d_fees into d_fees from patients_hms ph join doctors_hms dh on ph.d_id=dh.d_id where ph.p_id=pa_id;
+        select rn.r_fees into r_fees from rooms_hms rn join roomalloc_hms ra on rn.r_no=ra.r_no where ra.p_id=pa_id;
+        bill:=(no_of_days*d_fees)+(no_of_days*r_fees);
+        RETURN BILL;
+    
+END;
+--SELECT * FROM ROOMS_HMS
+set serveroutput on;
+CREATE OR REPLACE PROCEDURE UPDATE_PATIENT(pa_id varchar2) is
+
+bill_amt number;
+BEGIN 
+        UPDATE ROOMALLOC_HMS SET rel_date=systimestamp where p_id=pa_id;
+        UPDATE PATIENTS_HMS SET P_STATUS='INACTIVE' where p_id=pa_id;
+        UPDATE ROOMS_HMS SET R_STATUS='Vac' where r_no=(select rn.r_no from rooms_hms rn join roomalloc_hms ra on rn.r_no=ra.r_no where ra.p_id=pa_id);
+bill_amt:=bill_generate(pa_id);
+insert into bills_hms values(BILLS_HMS_SEQ.nextval-1,pa_id,bill_amt);
+dbms_output.put_line('Bill Amount:'||bill_amt);
+commit;
+end;
+exec UPDATE_PATIENT('P3')
+--select * from all_sequences where sequence_name in('PATIENTS_HMS_FK')
+ --  ALTER TRIGGER APPS.ROOM DISABLE
+ --  SELECT BILL_GENERATE('P3') FROM DUAL;
